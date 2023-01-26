@@ -24,11 +24,14 @@ __all__ = ("RefCatObjectAnalysisConfig", "RefCatObjectAnalysisTask")
 
 from lsst.pipe.base import connectionTypes as ct
 
-from ..analysisPlots.analysisPlots import (
+from ..analysisPlots.refCatMatchPlots import (
     TargetRefCatDeltaDecScatterPlot,
     TargetRefCatDeltaDecSkyPlot,
     TargetRefCatDeltaRAScatterPlot,
     TargetRefCatDeltaRASkyPlot,
+    TargetRefCatDeltaDecSkyPlot,
+    TargetRefCatDeltaPsfScatterPlot,
+    TargetRefCatDeltaPsfSkyPlot,
 )
 from ..contexts import CoaddContext
 from .base import AnalysisBaseConfig, AnalysisBaseConnections, AnalysisPipelineTask
@@ -68,6 +71,14 @@ class RefCatObjectAnalysisConfig(AnalysisBaseConfig, pipelineConnections=RefCatO
         self.plots.astromDiffDecSkyPlot = TargetRefCatDeltaDecSkyPlot()
         self.plots.astromDiffDecSkyPlot.parameterizedBand = True
         self.plots.astromDiffDecSkyPlot.applyContext(CoaddContext)
+
+        self.plots.magDiffSkyPlot = TargetRefCatDeltaPsfSkyPlot()
+        self.plots.magDiffSkyPlot.parameterizedBand = True
+        self.plots.magDiffSkyPlot.applyContext(CoaddContext)
+
+        self.plots.magDiffScatterPlot = TargetRefCatDeltaPsfScatterPlot()
+        self.plots.magDiffScatterPlot.parameterizedBand = True
+        self.plots.magDiffScatterPlot.applyContext(CoaddContext)
 
         # set metrics to run - none so far
 

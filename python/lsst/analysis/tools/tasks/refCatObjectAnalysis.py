@@ -57,28 +57,11 @@ class RefCatObjectAnalysisConfig(AnalysisBaseConfig, pipelineConnections=RefCatO
 
         # set plots to run
         self.plots.astromDiffRAScatterPlot = TargetRefCatDeltaRAScatterPlot()
-        self.plots.astromDiffRAScatterPlot.parameterizedBand = True
-        self.plots.astromDiffRAScatterPlot.applyContext(CoaddContext)
-
         self.plots.astromDiffDecScatterPlot = TargetRefCatDeltaDecScatterPlot()
-        self.plots.astromDiffDecScatterPlot.parameterizedBand = True
-        self.plots.astromDiffDecScatterPlot.applyContext(CoaddContext)
-
         self.plots.astromDiffRASkyPlot = TargetRefCatDeltaRASkyPlot()
-        self.plots.astromDiffRASkyPlot.parameterizedBand = True
-        self.plots.astromDiffRASkyPlot.applyContext(CoaddContext)
-
         self.plots.astromDiffDecSkyPlot = TargetRefCatDeltaDecSkyPlot()
-        self.plots.astromDiffDecSkyPlot.parameterizedBand = True
-        self.plots.astromDiffDecSkyPlot.applyContext(CoaddContext)
-
         self.plots.magDiffSkyPlot = TargetRefCatDeltaPsfSkyPlot()
-        self.plots.magDiffSkyPlot.parameterizedBand = True
-        self.plots.magDiffSkyPlot.applyContext(CoaddContext)
-
         self.plots.magDiffScatterPlot = TargetRefCatDeltaPsfScatterPlot()
-        self.plots.magDiffScatterPlot.parameterizedBand = True
-        self.plots.magDiffScatterPlot.applyContext(CoaddContext)
 
         # set metrics to run - none so far
 

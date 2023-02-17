@@ -4,3 +4,4 @@ from .photometricRepeatabilityPlots import *
 from .simpleDiaPlot import *
 from .skyObject import *
 from .skySource import *
+from .refCatMatchPlots import *

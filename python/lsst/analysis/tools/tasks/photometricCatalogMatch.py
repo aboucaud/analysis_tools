@@ -24,6 +24,7 @@ __all__ = ("PhotometricCatalogMatchConfig", "PhotometricCatalogMatchTask")
 
 import numpy as np
 from astropy.time import Time
+from astropy.table import Table, hstack
 from smatch import Matcher
 
 import lsst.pex.config as pexConfig
@@ -43,8 +44,7 @@ from ..actions.vector import (
 class PhotometricCatalogMatchConnections(
     pipeBase.PipelineTaskConnections,
     dimensions=("tract", "skymap"),
-    defaultTemplates={"targetCatalog": "objectTable_tract",
-                      "refCatalog": "ps1_pv3_3pi_20170110"},
+    defaultTemplates={"targetCatalog": "objectTable_tract", "refCatalog": "ps1_pv3_3pi_20170110"},
 ):
     catalog = pipeBase.connectionTypes.Input(
         doc="The tract-wide catalog to make plots from.",
@@ -79,23 +79,18 @@ class PhotometricCatalogMatchConnections(
 
 
 class PhotometricCatalogMatchConfig(
-    pipeBase.PipelineTaskConfig,
-    pipelineConnections=PhotometricCatalogMatchConnections
+    pipeBase.PipelineTaskConfig, pipelineConnections=PhotometricCatalogMatchConnections
 ):
 
     referenceCatalogLoader = pexConfig.ConfigurableField(
-        target=LoadReferenceCatalogTask, doc="Reference catalog loader",
+        target=LoadReferenceCatalogTask,
+        doc="Reference catalog loader",
     )
 
     epoch = pexConfig.Field[float](
         doc="Epoch to which reference objects are shifted.",
         default=2015.0,
     )
-
-    bands = pexConfig.ListField[str](
-        doc="All bands to persist to downstream tasks.",
-        default=["g", "r", "i", "z", "y"],
-     )
 
     filterNames = pexConfig.ListField[str](
         doc="Physical filter names to persist downstream.",
@@ -124,7 +119,12 @@ class PhotometricCatalogMatchConfig(
 
     extraColumns = pexConfig.ListField[str](
         doc="Other catalog columns to persist to downstream tasks.",
-        default=["i_cModelFlux", "x", "y"],
+        default=["x", "y", "ebv"],
+    )
+
+    extraPerBandColumns = pexConfig.ListField[str](
+        doc="Other columns to load that should be loaded for each band individually.",
+        default=["cModelFlux"],
     )
 
     raColumn = pexConfig.Field[str](doc="RA column.", default="coord_ra")
@@ -151,7 +151,20 @@ class PhotometricCatalogMatchTask(pipeBase.PipelineTask):
 
         inputs = butlerQC.get(inputRefs)
 
-        columns = [self.config.raColumn, self.config.decColumn, self.config.patchColumn] + self.config.extraColumns.list()
+        bands = []
+        for filterName in self.config.filterNames:
+            bands.append(self.config.referenceCatalogLoader.refObjLoader.filterMap[filterName])
+
+        bandColumns = []
+        for band in bands:
+            for col in self.config.extraPerBandColumns:
+                bandColumns.append(band + "_" + col)
+
+        columns = [
+            self.config.raColumn,
+            self.config.decColumn,
+            self.config.patchColumn,
+        ] + self.config.extraColumns.list() + bandColumns
 
         for selectorAction in [
             self.config.selectorActions,
@@ -159,7 +172,7 @@ class PhotometricCatalogMatchTask(pipeBase.PipelineTask):
             self.config.extraColumnSelectors,
         ]:
             for selector in selectorAction:
-                for band in self.config.bands:
+                for band in bands:
                     selectorSchema = selector.getFormattedInputSchema(band=band)
                     columns += [s[0] for s in selectorSchema]
 
@@ -178,10 +191,9 @@ class PhotometricCatalogMatchTask(pipeBase.PipelineTask):
         skymap = inputs.pop("skymap")
         loadedRefCat = self._loadRefCat(loaderTask, skymap[tract])
 
-        outputs = self.run(catalog=inputs["catalog"], loadedRefCat=loadedRefCat)
+        outputs = self.run(catalog=inputs["catalog"], loadedRefCat=loadedRefCat, bands=bands)
 
         butlerQC.put(outputs, outputRefs)
-
 
     def _loadRefCat(self, loaderTask, tractInfo):
         """docstring"""
@@ -194,14 +206,14 @@ class PhotometricCatalogMatchTask(pipeBase.PipelineTask):
         # This is always going to return degrees.
         loadedRefCat = loaderTask.getSkyCircleCatalog(center, radius, self.config.filterNames, epoch=epoch)
 
-        return loadedRefCat
+        return Table(loadedRefCat)
 
-    def run(self, *, catalog, loadedRefCat):
+    def run(self, *, catalog, loadedRefCat, bands):
         """docstring"""
         # Apply the selectors to the catalog
         mask = np.ones(len(catalog), dtype=bool)
         for selector in self.config.selectorActions:
-            mask &= selector(catalog, bands=self.config.bands)
+            mask &= selector(catalog, bands=bands)
 
         for selector in self.config.sourceSelectorActions:
             mask &= selector(catalog, band=self.config.selectorBand).astype(bool)
@@ -209,51 +221,42 @@ class PhotometricCatalogMatchTask(pipeBase.PipelineTask):
         targetCatalog = catalog[mask]
 
         if (len(targetCatalog) == 0) or (len(loadedRefCat) == 0):
-            # matches = pipeBase.Strict(
-            #     refMatchIndices=np.array([]), targetMatchIndices=np.array([]), separations=np.array([])
-            # )
             refMatchIndices = np.array([], dtype=np.int64)
             targetMatchIndices = np.array([], dtype=np.int64)
-            dist = np.array([], dtype=np.float64)
+            dists = np.array([], dtype=np.float64)
         else:
             # Run the matcher.
 
             # This all assumes that everything is in degrees.
             # Which I think is okay, but the current task allows different units.
             # Need to configure match radius, either in this task or a subtask.
-            with Matcher(targetCatalog["coord_ra"], targetCatalog["coord_dec"]) as m:
-                idx, targetMatchIndices, refMatchIndices, dists = m.query_radius(loadedRefCat["ra"],
-                                                                                 loadedRefCat["dec"],
-                                                                                 1./3600.,
-                                                                                 return_indices=True)
+            with Matcher(loadedRefCat["ra"], loadedRefCat["dec"]) as m:
+                idx, refMatchIndices, targetMatchIndices, dists = m.query_radius(
+                    targetCatalog[self.config.raColumn],
+                    targetCatalog[self.config.decColumn],
+                    1.0 / 3600.0,
+                    return_indices=True,
+                )
+
             # Convert degrees to arcseconds.
-            dists *= 3600.
+            dists *= 3600.0
 
         targetCatalogMatched = targetCatalog[targetMatchIndices]
         loadedRefCatMatched = loadedRefCat[refMatchIndices]
 
-        print(loadedRefCatMatched)
         targetCols = targetCatalogMatched.columns.copy()
         for col in targetCols:
             targetCatalogMatched.rename_column(col, col + "_target")
-        refCols = loadedRefCatMatched.keys.copy()
+        refCols = loadedRefCatMatched.columns.copy()
         for col in refCols:
             loadedRefCatMatched.rename_column(col, col + "_ref")
 
+        for (i, band) in enumerate(bands):
+            loadedRefCatMatched[band + "_mag_ref"] = loadedRefCatMatched["refMag_ref"][:, i]
+            loadedRefCatMatched[band + "_magErr_ref"] = loadedRefCatMatched["refMagErr_ref"][:, i]
+        loadedRefCatMatched.remove_column("refMag_ref")
+        loadedRefCatMatched.remove_column("refMagErr_ref")
         tMatched = hstack([targetCatalogMatched, loadedRefCatMatched], join_type="exact")
+        tMatched["matchDistance"] = dists
 
-
-        # loadedRefCat["refMag"] has shape (Nstar, Nfilter)
-        # loadedRefCat["refMag"] has same shape.
-        # Can separate this out with band names which come from filterMap.
-        # self.config.referenceCatalogLoader.refObjLoader.filterMap  That's fun!
-
-        # Make sure you add the dist column!
-
-        # return a struct with the output catalog.
-
-        # obs_subaru/config/analysisToolsPhotometricCatalogMatch.py
-        # config.referenceCatalogLoader.applyColorTerms = True
-        # config.referenceCatalogLoader.colorterms.load(os.path.join(OBS_CONFIG_DIR, "colorterms.py"))
-        # config.referenceCatalogLoader.refObjLoader.load(os.path.join(OBS_CONFIG_DIR, "filterMap.py"))
-
+        return pipeBase.Struct(matchedCatalog=tMatched)

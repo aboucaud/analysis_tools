@@ -24,7 +24,7 @@ from __future__ import annotations
 be a subclass of `Context`, and should contain a description of what the
 context is for as it's docstring.
 """
-__all__ = ("VisitContext", "CoaddContext", "MatchedRefDiffContext", "MatchedRefChiContext")
+__all__ = ("VisitContext", "CoaddContext", "MatchedRefDiffContext", "MatchedRefChiContext", "RefMatchContext")
 
 from ._baseContext import Context
 
@@ -54,4 +54,9 @@ class MatchedRefDiffContext(Context):
 class MatchedRefChiContext(Context):
     """A context which indicates `AnalysisAction`s are computing error-scaled
     differences between matches to reference objects.
+    """
+
+class RefMatchContext(Context):
+    """A context which indicates that `AnalysisActions` are being computed
+    on HSC data matched to the Gaia or PS reference catalogues.
     """

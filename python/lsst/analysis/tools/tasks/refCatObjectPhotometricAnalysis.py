@@ -20,21 +20,17 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
-__all__ = ("RefCatObjectAnalysisConfig", "RefCatObjectAnalysisTask")
+__all__ = ("RefCatObjectPhotometricAnalysisConfig", "RefCatObjectPhotometricAnalysisTask")
 
 from lsst.pipe.base import connectionTypes as ct
 
-from ..analysisPlots.refCatMatchPlots import (
-    TargetRefCatDeltaDecScatterPlot,
-    TargetRefCatDeltaDecSkyPlot,
-    TargetRefCatDeltaRAScatterPlot,
-    TargetRefCatDeltaRASkyPlot,
-    TargetRefCatDeltaDecSkyPlot,
-    TargetRefCatDeltaPsfScatterPlot,
-    TargetRefCatDeltaPsfSkyPlot,
-)
-from ..contexts import CoaddContext
 from .base import AnalysisBaseConfig, AnalysisBaseConnections, AnalysisPipelineTask
+from ..analysisPlots.refCatMatchPlots import (
+    TargetRefCatDeltaPsfScatterPlot,
+    TargetRefCatDeltaCModelScatterPlot,
+    TargetRefCatDeltaPsfSkyPlot,
+    TargetRefCatDeltaCModelSkyPlot,
+)
 
 
 class RefCatObjectPhotometricAnalysisConnections(
@@ -51,28 +47,23 @@ class RefCatObjectPhotometricAnalysisConnections(
     )
 
 
-class RefCatObjectPhotometricAnalysisConfig(AnalysisBaseConfig,
-        pipelineConnections=RefCatObjectPhotometricAnalysisConnections):
-
+class RefCatObjectPhotometricAnalysisConfig(
+    AnalysisBaseConfig, pipelineConnections=RefCatObjectPhotometricAnalysisConnections
+):
     def setDefaults(self):
-        super().setDefaults()
 
-        # set plots to run
-        self.plots.magDiffSkyPlot = TargetRefCatDeltaPsfSkyPlot()
-        self.plots.magDiffSkyPlot.parameterizedBand = True
-        self.plots.magDiffSkyPlot.applyContext(CoaddContext)
+        self.plots.targetRefCatDeltaPsfScatterPlot = TargetRefCatDeltaPsfScatterPlot()
+        self.plots.targetRefCatDeltaCModelScatterPlot = TargetRefCatDeltaCModelScatterPlot()
 
-        self.plots.magDiffScatterPlot = TargetRefCatDeltaPsfScatterPlot()
-        self.plots.magDiffScatterPlot.parameterizedBand = True
-        self.plots.magDiffScatterPlot.applyContext(CoaddContext)
-
-        # set metrics to run - none so far
+        self.plots.targetRefCatDeltaPsfSkyPlot = TargetRefCatDeltaPsfSkyPlot()
+        self.plots.targetRefCatDeltaCModelSkyPlot = TargetRefCatDeltaCModelSkyPlot()
 
 
 class RefCatObjectPhotometricAnalysisTask(AnalysisPipelineTask):
-    """Make plots and metrics using a table of objects matched to reference
-    catalog sources.
+    """Make plots and metrics using a table of objects matched to photometric
+    reference catalog sources. These plots compare the photometry in each of the
+    specified bands.
     """
 
     ConfigClass = RefCatObjectPhotometricAnalysisConfig
-    _DefaultName = "refCatObjecPhotometrictAnalysisTask"
+    _DefaultName = "refCatObjectPhotometricAnalysisTask"

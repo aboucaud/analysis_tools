@@ -289,6 +289,7 @@ class TargetRefCatDelta(AnalysisPlot):
     def setDefaults(self, coordinate):
         super().setDefaults()
 
+        print(self)
         self.process.buildActions.starSelector = StarSelector()
         coordStr = coordinate.lower()
         self.process.buildActions.astromDiff = AstromDiff(

@@ -24,9 +24,11 @@ __all__ = ("CoaddPrep", "VisitPrep")
 
 from ..actions.vector import CoaddPlotFlagSelector, SnSelector, VisitPlotFlagSelector
 from .base import BasePrep
+from lsst.pex.config import Field
 
 
 class CoaddPrep(BasePrep):
+
     def setDefaults(self):
         super().setDefaults()
 
@@ -39,6 +41,7 @@ class CoaddPrep(BasePrep):
 
 
 class VisitPrep(BasePrep):
+
     def setDefaults(self):
         super().setDefaults()
 

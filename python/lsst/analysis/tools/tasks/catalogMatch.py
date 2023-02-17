@@ -114,7 +114,7 @@ class CatalogMatchConnections(
 ):
     catalog = pipeBase.connectionTypes.Input(
         doc="The tract-wide catalog to make plots from.",
-        storageClass="DataFrame",
+        storageClass="ArrowAstropy",
         name="{targetCatalog}",
         dimensions=("tract", "skymap"),
         deferLoad=True,
@@ -219,6 +219,7 @@ class CatalogMatchTask(pipeBase.PipelineTask):
 
         dataFrame = inputs["catalog"].get(parameters={"columns": columns})
         inputs["catalog"] = dataFrame
+        print(type(dataFrame))
 
         tract = butlerQC.quantum.dataId["tract"]
 
@@ -254,6 +255,7 @@ class CatalogMatchTask(pipeBase.PipelineTask):
                 angular separation in arcseconds between matches.
         """
         # Apply the selectors to the catalog
+        print(type(catalog))
         mask = np.ones(len(catalog), dtype=bool)
         for selector in self.config.selectorActions:
             mask &= selector(catalog, bands=self.config.bands)
@@ -262,7 +264,6 @@ class CatalogMatchTask(pipeBase.PipelineTask):
             mask &= selector(catalog, band=self.config.selectorBand).astype(bool)
 
         targetCatalog = catalog[mask]
-        targetCatalog = targetCatalog.reset_index()
 
         if (len(targetCatalog) == 0) or (len(self.refCat) == 0):
             matches = pipeBase.Struct(
@@ -273,8 +274,9 @@ class CatalogMatchTask(pipeBase.PipelineTask):
             matches = self.matcher.run(self.refCat, targetCatalog)
 
         # Join the catalogs for the matched catalogs
-        refMatches = self.refCat.iloc[matches.refMatchIndices].reset_index()
-        sourceMatches = targetCatalog.iloc[matches.targetMatchIndices].reset_index()
+        print(type(self.refCat))
+        #refMatches = self.refCat[matches.refMatchIndices]
+        sourceMatches = targetCatalog[matches.targetMatchIndices]
         matchedCat = sourceMatches.join(refMatches, lsuffix="_target", rsuffix="_ref")
 
         separations = pd.Series(matches.separations).rename("separation")

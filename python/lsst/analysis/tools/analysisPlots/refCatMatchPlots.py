@@ -57,8 +57,8 @@ from ..contexts import CoaddContext, RefMatchContext
 
 
 class TargetRefCatDelta(AnalysisPlot):
-    """Plot the difference in milliseconds between a target catalog and a
-    reference catalog for the coordinate set in `setDefaults`.
+    """Plot the difference between a target catalog and a
+    reference catalog for the quantity set in `setDefaults`.
     """
 
     parameterizedBand = Field[bool](
@@ -66,6 +66,10 @@ class TargetRefCatDelta(AnalysisPlot):
     )
 
     def coaddContext(self) -> None:
+        """Apply coadd options for the ref cat plots.
+        Applies the coadd plot flag selector and sets
+        flux types.
+        """
         self.prep.selectors.flagSelector = CoaddPlotFlagSelector()
         self.prep.selectors.snSelector.fluxType = "{band}_psfFlux_target"
         self.prep.selectors.snSelector.threshold = 200
@@ -75,12 +79,11 @@ class TargetRefCatDelta(AnalysisPlot):
         self.process.buildActions.starStatMask = SnSelector()
         self.process.buildActions.starStatMask.fluxType = "{band}_psfFlux_target"
 
-        self.process.calculateActions.stars = ScatterPlotStatsAction(vectorKey="yStars")
-        self.process.calculateActions.stars.lowSNSelector.fluxType = "{band}_psfFlux_target"
-        self.process.calculateActions.stars.highSNSelector.fluxType = "{band}_psfFlux_target"
-        self.process.calculateActions.stars.fluxType = "{band}_psfFlux_target"
-
     def visitContext(self) -> None:
+        """Apply visit options for the ref cat plots.
+        Applies the visit plot flag selector and sets
+        the flux types.
+        """
         self.parameterizedBand = False
         self.prep = VisitPrep()
         self.process.buildActions.starSelector.vectorKey = "extendedness_target"
@@ -104,19 +107,19 @@ class TargetRefCatDelta(AnalysisPlot):
 
 class TargetRefCatDeltaScatterAstrom(TargetRefCatDelta):
     """Plot the difference in milliseconds between a target catalog and a
-    reference catalog for the coordinate set in `setDefaults`.
+    reference catalog for the coordinate set in `setDefaults`. Plot it on
+    a scatter plot.
     """
 
     def setDefaults(self, vectorKey):
         super().setDefaults(vectorKey)
 
         coordStr = vectorKey.lower()
-        self.process.buildActions.astromDiff = AstromDiff(
-            col1=f"coord_{coordStr}_target", col2=f"coord_{coordStr}_ref"
-        )
-
-        #self.process.buildActions.yStars = LoadVector()
-        #self.process.buildActions.yStars.vectorKey = "coord_ra_target"
+        self.process.buildActions.yStars = AstromDiff(col1=f"coord_{coordStr}_target", col2=f"{coordStr}_ref")
+        self.process.calculateActions.stars = ScatterPlotStatsAction(vectorKey="yStars")
+        self.process.calculateActions.stars.lowSNSelector.fluxType = "{band}_psfFlux_target"
+        self.process.calculateActions.stars.highSNSelector.fluxType = "{band}_psfFlux_target"
+        self.process.calculateActions.stars.fluxType = "{band}_psfFlux_target"
 
         self.produce = ScatterPlotWithTwoHists()
         self.produce.plotTypes = ["stars"]
@@ -128,8 +131,8 @@ class TargetRefCatDeltaScatterAstrom(TargetRefCatDelta):
 
 
 class TargetRefCatDeltaScatterPhotom(TargetRefCatDelta):
-    """Plot the difference in milliseconds between a target catalog and a
-    reference catalog for the coordinate set in `setDefaults`.
+    """Plot the difference in millimags between a target catalog and a
+    reference catalog for the flux type set in `setDefaults`.
     """
 
     def setDefaults(self, vectorKey):
@@ -141,6 +144,11 @@ class TargetRefCatDeltaScatterPhotom(TargetRefCatDelta):
         self.process.buildActions.yStars.magDiff.fluxUnits2 = "mag(AB)"
         self.process.buildActions.yStars.ebvCol = "ebv_target"
 
+        self.process.calculateActions.stars = ScatterPlotStatsAction(vectorKey="yStars")
+        self.process.calculateActions.stars.lowSNSelector.fluxType = "{band}_psfFlux_target"
+        self.process.calculateActions.stars.highSNSelector.fluxType = "{band}_psfFlux_target"
+        self.process.calculateActions.stars.fluxType = "{band}_psfFlux_target"
+
         self.produce = ScatterPlotWithTwoHists()
         self.produce.plotTypes = ["stars"]
         self.produce.magLabel = "PSF Magnitude (mag)"
@@ -151,16 +159,16 @@ class TargetRefCatDeltaScatterPhotom(TargetRefCatDelta):
 
 
 class TargetRefCatDeltaPsfScatterPlot(TargetRefCatDeltaScatterPhotom):
-    """Plot the difference in milliseconds between the RA of a target catalog
-    and a reference catalog
+    """Plot the difference in millimags between the PSF flux
+    of a target catalog and a reference catalog
     """
 
     def setDefaults(self):
         super().setDefaults(vectorKey="psfFlux_target")
 
 class TargetRefCatDeltaCModelScatterPlot(TargetRefCatDeltaScatterPhotom):
-    """Plot the difference in milliseconds between the RA of a target catalog
-    and a reference catalog
+    """Plot the difference in millimags between the CModel flux
+    of a target catalog and a reference catalog.
     """
 
     def setDefaults(self):
@@ -186,8 +194,8 @@ class TargetRefCatDeltaDecScatterPlot(TargetRefCatDeltaScatterAstrom):
 
 class TargetRefCatDeltaSkyPlot(TargetRefCatDelta):
     """Base class for plotting the RA/Dec distribution of stars, with the
-    difference between the RA or Dec of the target and reference catalog as
-    the color.
+    difference of the quantity defined in the vector key parameter between
+    the target and reference catalog as the color.
     """
 
     parameterizedBand = Field[bool](
@@ -223,7 +231,7 @@ class TargetRefCatDeltaSkyPlotAstrom(TargetRefCatDeltaSkyPlot):
 
         coordStr = vectorKey.lower()
         self.process.buildActions.zStars = AstromDiff(
-            col1=f"coord_{coordStr}_target", col2=f"coord_{coordStr}_ref"
+            col1=f"coord_{coordStr}_target", col2=f"{coordStr}_ref"
         )
 
         self.produce.plotName = f"astromDiffSky_{vectorKey}"
@@ -234,7 +242,7 @@ class TargetRefCatDeltaSkyPlotAstrom(TargetRefCatDeltaSkyPlot):
 
 class TargetRefCatDeltaSkyPlotPhotom(TargetRefCatDeltaSkyPlot):
     """Base class for plotting the RA/Dec distribution of stars, with the
-    difference between the RA or Dec of the target and reference catalog as
+    difference between the photometry of the target and reference catalog as
     the color.
     """
 
@@ -256,16 +264,18 @@ class TargetRefCatDeltaSkyPlotPhotom(TargetRefCatDeltaSkyPlot):
 
 
 class TargetRefCatDeltaPsfSkyPlot(TargetRefCatDeltaSkyPlotPhotom):
-    """Plot the difference in milliseconds between the RA of a target catalog
-    and a reference catalog as a function of RA and Dec.
+    """Plot the RA/Dec distribution of stars, with the
+    difference between the PSF photometry of the target and reference catalog as
+    the color.
     """
 
     def setDefaults(self):
         super().setDefaults(vectorKey="psfFlux_target")
 
 class TargetRefCatDeltaCModelSkyPlot(TargetRefCatDeltaSkyPlotPhotom):
-    """Plot the difference in milliseconds between the RA of a target catalog
-    and a reference catalog as a function of RA and Dec.
+    """Plot the RA/Dec distribution of stars, with the
+    difference between the CModel photometry of the target and reference catalog as
+    the color.
     """
 
     def setDefaults(self):
@@ -273,16 +283,18 @@ class TargetRefCatDeltaCModelSkyPlot(TargetRefCatDeltaSkyPlotPhotom):
 
 
 class TargetRefCatDeltaRASkyPlot(TargetRefCatDeltaSkyPlotAstrom):
-    """Plot the difference in milliseconds between the RA of a target catalog
-    and a reference catalog as a function of RA and Dec.
+    """Plot the RA/Dec distribution of stars, with the
+    difference between the RA of the target and reference catalog as
+    the color.
     """
 
     def setDefaults(self):
         super().setDefaults(vectorKey="RA")
 
 class TargetRefCatDeltaDecSkyPlot(TargetRefCatDeltaSkyPlotAstrom):
-    """Plot the difference in milliseconds between the Dec of a target catalog
-    and a reference catalog as a function of RA and Dec.
+    """Plot the RA/Dec distribution of stars, with the
+    difference between the Dec of the target and reference catalog as
+    the color.
     """
 
     def setDefaults(self):

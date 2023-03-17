@@ -51,6 +51,9 @@ class RefCatObjectPhotometricAnalysisConfig(
     AnalysisBaseConfig, pipelineConnections=RefCatObjectPhotometricAnalysisConnections
 ):
     def setDefaults(self):
+        """The default plots and metrics to make for the photometric
+        comparsion to the reference catalogue.
+        """
 
         self.plots.targetRefCatDeltaPsfScatterPlot = TargetRefCatDeltaPsfScatterPlot()
         self.plots.targetRefCatDeltaCModelScatterPlot = TargetRefCatDeltaCModelScatterPlot()

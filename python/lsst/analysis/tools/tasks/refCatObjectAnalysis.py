@@ -45,7 +45,7 @@ class RefCatObjectAnalysisConnections(
     data = ct.Input(
         doc="Tract based object table to load from the butler",
         name="objectTable_tract_gaia_dr2_20200414_match",
-        storageClass="DataFrame",
+        storageClass="ArrowAstropy",
         deferLoad=True,
         dimensions=("skymap", "tract"),
     )
@@ -60,8 +60,6 @@ class RefCatObjectAnalysisConfig(AnalysisBaseConfig, pipelineConnections=RefCatO
         self.plots.astromDiffDecScatterPlot = TargetRefCatDeltaDecScatterPlot()
         self.plots.astromDiffRASkyPlot = TargetRefCatDeltaRASkyPlot()
         self.plots.astromDiffDecSkyPlot = TargetRefCatDeltaDecSkyPlot()
-        self.plots.magDiffSkyPlot = TargetRefCatDeltaPsfSkyPlot()
-        self.plots.magDiffScatterPlot = TargetRefCatDeltaPsfScatterPlot()
 
         # set metrics to run - none so far
 

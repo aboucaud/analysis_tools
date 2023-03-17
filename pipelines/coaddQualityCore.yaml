@@ -1,54 +1,58 @@
 description: |
   Tier1 plots and metrics to assess coadd quality
 tasks:
-    #analyzeObjectTableCore:
-    #class: lsst.analysis.tools.tasks.ObjectTableTractAnalysisTask
-    #config:
-    #  connections.outputName: objectTableCore
-    #  plots.shapeSizeFractionalDiffScatterPlot: ShapeSizeFractionalDiffScatterPlot
-    #  metrics.shapeSizeFractionalMetric: ShapeSizeFractionalMetric
-    #  plots.e1DiffScatterPlot: E1DiffScatterPlot
-    #  metrics.e1DiffScatterMetric: E1DiffMetric
-    #  plots.e2DiffScatterPlot: E2DiffScatterPlot
-    #  metrics.e2DiffScatterMetric: E2DiffMetric
-    #  metrics.skyFluxStatisticMetric: SkyFluxStatisticMetric
-    #  metrics.skyFluxStatisticMetric.applyContext: CoaddContext
-    #  plots.wPerpPSFPlot: WPerpPSFPlot
-    #  metrics.wPerpPSFMetric: WPerpPSFMetric
-    #  plots.wPerpCModelPlot: WPerpCModelPlot
-    #  metrics.wPerpCModelMetric: WPerpCModelMetric
-    #  plots.xPerpPSFPlot: XPerpPSFPlot
-    #  metrics.xPerpPSFMetric: XPerpPSFMetric
-    #  plots.xPerpCModelPlot: XPerpCModelPlot
-    #  metrics.xPerpCModelMetric: XPerpCModelMetric
-    #  plots.yPerpPSFPlot: YPerpPSFPlot
-    #  metrics.yPerpPSFMetric: YPerpPSFMetric
-    #  plots.yPerpCModelPlot: YPerpCModelPlot
-    #  metrics.yPerpCModelMetric: YPerpCModelMetric
-    #  plots.skyObjectSkyPlot: SkyObjectSkyPlot
-    #  plots.skyObjectHistPlot: SkyObjectHistPlot
-    #  python: |
-    #    from lsst.analysis.tools.analysisPlots import *
-    #    from lsst.analysis.tools.analysisMetrics import *
-    #    from lsst.analysis.tools.contexts import *
-    #analyzeObjectTableSurveyCore:
-    #class: lsst.analysis.tools.tasks.ObjectTableSurveyAnalysisTask
-    #config:
-    #  connections.outputName: objectTableSurvey
-    #  plots.rhoStatisticsPlot: RhoStatisticsPlot
-    #  bands: ["i"]
-    #  python: |
-    #    from lsst.analysis.tools.analysisPlots import *
-    #    from lsst.analysis.tools.analysisMetrics import *
-    #    from lsst.analysis.tools.contexts import *
-    #    from lsst.analysis.tools.actions.plot import *
+  analyzeObjectTableCore:
+    class: lsst.analysis.tools.tasks.ObjectTableTractAnalysisTask
+    config:
+      connections.outputName: objectTableCore
+      plots.shapeSizeFractionalDiffScatterPlot: ShapeSizeFractionalDiffScatterPlot
+      metrics.shapeSizeFractionalMetric: ShapeSizeFractionalMetric
+      plots.e1DiffScatterPlot: E1DiffScatterPlot
+      metrics.e1DiffScatterMetric: E1DiffMetric
+      plots.e2DiffScatterPlot: E2DiffScatterPlot
+      metrics.e2DiffScatterMetric: E2DiffMetric
+      metrics.skyFluxStatisticMetric: SkyFluxStatisticMetric
+      metrics.skyFluxStatisticMetric.applyContext: CoaddContext
+      plots.wPerpPSFPlot: WPerpPSFPlot
+      metrics.wPerpPSFMetric: WPerpPSFMetric
+      plots.wPerpCModelPlot: WPerpCModelPlot
+      metrics.wPerpCModelMetric: WPerpCModelMetric
+      plots.xPerpPSFPlot: XPerpPSFPlot
+      metrics.xPerpPSFMetric: XPerpPSFMetric
+      plots.xPerpCModelPlot: XPerpCModelPlot
+      metrics.xPerpCModelMetric: XPerpCModelMetric
+      plots.yPerpPSFPlot: YPerpPSFPlot
+      metrics.yPerpPSFMetric: YPerpPSFMetric
+      plots.yPerpCModelPlot: YPerpCModelPlot
+      metrics.yPerpCModelMetric: YPerpCModelMetric
+      plots.skyObjectSkyPlot: SkyObjectSkyPlot
+      plots.skyObjectHistPlot: SkyObjectHistPlot
+      python: |
+        from lsst.analysis.tools.analysisPlots import *
+        from lsst.analysis.tools.analysisMetrics import *
+        from lsst.analysis.tools.contexts import *
+  analyzeObjectTableSurveyCore:
+    class: lsst.analysis.tools.tasks.ObjectTableSurveyAnalysisTask
+    config:
+      connections.outputName: objectTableSurvey
+      plots.rhoStatisticsPlot: RhoStatisticsPlot
+      bands: ["i"]
+      python: |
+        from lsst.analysis.tools.analysisPlots import *
+        from lsst.analysis.tools.analysisMetrics import *
+        from lsst.analysis.tools.contexts import *
+        from lsst.analysis.tools.actions.plot import *
   # Perform astrometric comparison to the reference catalog
   catalogMatchTract:
-    class: lsst.analysis.tools.tasks.catalogMatch.CatalogMatchTask
+    class: lsst.analysis.tools.tasks.astrometricCatalogMatch.AstrometricCatalogMatchTask
+    config:
+      connections.refCatalog: gaia_dr2_20200414
   refCatObjectTract:
     class: lsst.analysis.tools.tasks.refCatObjectAnalysis.RefCatObjectAnalysisTask
   # Perform photometric comparison to the reference catalog
   photometricCatalogMatch:
     class: lsst.analysis.tools.tasks.photometricCatalogMatch.PhotometricCatalogMatchTask
+    config:
+      connections.refCatalog: ps1_pv3_3pi_20170110
   photometricRefCatObjectTract:
     class: lsst.analysis.tools.tasks.refCatObjectPhotometricAnalysis.RefCatObjectPhotometricAnalysisTask

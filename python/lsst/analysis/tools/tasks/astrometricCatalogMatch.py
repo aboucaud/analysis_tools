@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ("AstrometricCatalogMatchConfig", "AstrometricCatalogMatchTask")
+__all__ = ("AstrometricCatalogMatchConfig", "AstrometricCatalogMatchTask", "AstrometricCatalogMatchVisitConfig", "AstrometricCatalogMatchVisitTask")
 
 import astropy.units as units
 import lsst.geom
@@ -29,6 +29,7 @@ import numpy as np
 import pandas as pd
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
+from astropy.table import Table
 from lsst.pipe.tasks.loadReferenceCatalog import LoadReferenceCatalogTask
 from lsst.meas.algorithms import ReferenceObjectLoader
 from lsst.pipe.tasks.configurableActions import ConfigurableActionStructField
@@ -88,15 +89,15 @@ class AstrometricCatalogMatchTask(CatalogMatchTask):
         butlerQC.put(outputs, outputRefs)
 
 
-class CatalogMatchVisitConnections(
-    pipeBase.PipelineTaskConnections,
+class AstrometricCatalogMatchVisitConnections(
+    CatalogMatchConnections,
     dimensions=("visit",),
     defaultTemplates={"targetCatalog": "sourceTable_visit", "refCatalog": "gaia_dr2_20200414"},
 ):
 
     catalog = pipeBase.connectionTypes.Input(
         doc="The visit-wide catalog to make plots from.",
-        storageClass="DataFrame",
+        storageClass="ArrowAstropy",
         name="sourceTable_visit",
         dimensions=("visit",),
         deferLoad=True,
@@ -121,12 +122,12 @@ class CatalogMatchVisitConnections(
     matchedCatalog = pipeBase.connectionTypes.Output(
         doc="Catalog with matched target and reference objects with separations",
         name="{targetCatalog}_{refCatalog}_match",
-        storageClass="DataFrame",
+        storageClass="ArrowAstropy",
         dimensions=("visit",),
     )
 
 
-class CatalogMatchVisitConfig(CatalogMatchConfig, pipelineConnections=CatalogMatchVisitConnections):
+class AstrometricCatalogMatchVisitConfig(AstrometricCatalogMatchConfig, pipelineConnections=AstrometricCatalogMatchVisitConnections):
     selectorActions = ConfigurableActionStructField(
         doc="Which selectors to use to narrow down the data for QA plotting.",
         default={"flagSelector": VisitPlotFlagSelector},
@@ -146,12 +147,13 @@ class CatalogMatchVisitConfig(CatalogMatchConfig, pipelineConnections=CatalogMat
         self.extraColumnSelectors.selector2.vectorKey = "extendedness"
         self.referenceCatalogLoader.doApplyColorTerms = False
         self.referenceCatalogLoader.refObjLoader.requireProperMotion = False
+        self.referenceCatalogLoader.refObjLoader.anyFilterMapsToThis = "phot_g_mean"
 
 
-class CatalogMatchVisitTask(CatalogMatchTask):
+class AstrometricCatalogMatchVisitTask(AstrometricCatalogMatchTask):
     """Match a visit-level catalog to a reference catalog"""
 
-    ConfigClass = CatalogMatchVisitConfig
+    ConfigClass = AstrometricCatalogMatchVisitConfig
     _DefaultName = "analysisToolsCatalogMatchVisit"
 
     def runQuantum(self, butlerQC, inputRefs, outputRefs):
@@ -172,20 +174,21 @@ class CatalogMatchVisitTask(CatalogMatchTask):
         dataFrame = inputs["catalog"].get(parameters={"columns": columns})
         inputs["catalog"] = dataFrame
 
-        self.refObjLoader = ReferenceObjectLoader(
-            dataIds=[ref.datasetRef.dataId for ref in inputRefs.refCat],
-            refCats=inputs.pop("refCat"),
-            name=self.config.connections.refCat,
-            log=self.log,
+        loaderTask = LoadReferenceCatalogTask(
+            config=self.config.referenceCatalogLoader,
+            dataIds=[ref.dataId for ref in inputRefs.refCat],
+            name=inputs["refCat"][0].ref.datasetType.name,
+            refCats=inputs["refCat"],
         )
 
-        self.setRefCat(inputs.pop("visitSummaryTable"))
-
-        outputs = self.run(**inputs)
+        skymap = inputs.pop("skymap")
+        visitSummaryTable = inputs.pop("visitSummaryTable")
+        loadedRefCat = self._loadRefCat(loaderTask, visitSummaryTable)
+        outputs = self.run(catalog=inputs["catalog"], loadedRefCat=loadedRefCat, bands=self.config.bands)
 
         butlerQC.put(outputs, outputRefs)
 
-    def setRefCat(self, visitSummaryTable):
+    def _loadRefCat(self, loaderTask, visitSummaryTable):
         """Make a reference catalog with coordinates in degrees
 
         Parameters
@@ -209,9 +212,15 @@ class CatalogMatchVisitTask(CatalogMatchTask):
         # Load the reference catalog in the skyCircle of the detectors, then
         # convert the coordinates to degrees and convert the catalog to a
         # dataframe
-        skyCircle = self.refObjLoader.loadSkyCircle(center, radius, "i", epoch=epoch)
-        refCat = skyCircle.refCat
 
-        refCat["coord_ra"] = (refCat["coord_ra"] * units.radian).to(units.degree).to_value()
-        refCat["coord_dec"] = (refCat["coord_dec"] * units.radian).to(units.degree).to_value()
-        self.refCat = refCat.asAstropy().to_pandas()
+        filterName = self.config.referenceCatalogLoader.refObjLoader.anyFilterMapsToThis
+        loadedRefCat = loaderTask.getSkyCircleCatalog(center, radius, filterName, epoch=epoch)
+        #if self.config.referenceCatalogLoader.refObjLoader.anyFilterMapsToThis is not None:
+        #else:
+        #    filterName = "i"
+        #skyCircle = self.refObjLoader.loadSkyCircle(center, radius, filterName, epoch=epoch)
+        #refCat = skyCircle.refCat
+
+        #refCat["coord_ra"] = (refCat["coord_ra"] * units.radian).to(units.degree).to_value()
+        #refCat["coord_dec"] = (refCat["coord_dec"] * units.radian).to(units.degree).to_value()
+        return Table(loadedRefCat)

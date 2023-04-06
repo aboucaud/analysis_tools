@@ -24,7 +24,7 @@ __all__ = ("RefCatSourceAnalysisConfig", "RefCatSourceAnalysisTask")
 
 from lsst.pipe.base import connectionTypes as ct
 
-from ..analysisPlots.analysisPlots import (
+from ..analysisPlots.refCatMatchPlots import (
     TargetRefCatDeltaDecScatterPlot,
     TargetRefCatDeltaDecSkyPlot,
     TargetRefCatDeltaRAScatterPlot,

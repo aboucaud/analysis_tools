@@ -85,8 +85,7 @@ class TargetRefCatDelta(AnalysisPlot):
         the flux types.
         """
         self.parameterizedBand = False
-        self.prep = VisitPrep()
-        self.process.buildActions.starSelector.vectorKey = "extendedness_target"
+        self.prep.selectors.starSelector.vectorKey = "extendedness_target"
         self.process.buildActions.mags = MagColumnNanoJansky(vectorKey="psfFlux_target")
         self.process.filterActions.psfFlux = DownselectVector(
             vectorKey="psfFlux_target", selector=VectorSelector(vectorKey="starSelector")

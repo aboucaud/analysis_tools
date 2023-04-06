@@ -175,7 +175,7 @@ class CatalogMatchTask(pipeBase.PipelineTask):
             self.config.patchColumn,
         ] + self.config.extraColumns.list() + bandColumns
 
-        selectorBands = list(set(bands + self.config.selectorBands))
+        selectorBands = list(set(list(bands) + self.config.selectorBands.list()))
         for selectorAction in [
             self.config.selectorActions,
             self.config.sourceSelectorActions,
@@ -203,7 +203,6 @@ class CatalogMatchTask(pipeBase.PipelineTask):
         `loadedRefCat` : astropy.table.Table
             The reference catalog that covers the input catalog.
         """
-        print("TYPE", type(loaderTask), type(tractInfo))
         boundingCircle = tractInfo.getOuterSkyPolygon().getBoundingCircle()
         center = lsst.geom.SpherePoint(boundingCircle.getCenter())
         radius = boundingCircle.getOpeningAngle()
@@ -242,7 +241,8 @@ class CatalogMatchTask(pipeBase.PipelineTask):
         # Apply the selectors to the catalog
         mask = np.ones(len(catalog), dtype=bool)
         for selector in self.config.sourceSelectorActions:
-            mask &= selector(catalog, bands=self.config.selectorBands).astype(bool)
+            for band in self.config.selectorBands:
+                mask &= selector(catalog, band=band).astype(bool)
 
         targetCatalog = catalog[mask]
 

@@ -4,8 +4,29 @@ tasks:
   analyzeMatchedVisitCore:
     class: lsst.analysis.tools.tasks.AssociatedSourcesTractAnalysisTask
     config:
-      bands: ['g', 'r', 'i', 'z']
+      bands: ['g', 'r', 'i', 'z', 'y']
       connections.outputName: matchedVisitCore
-      atools.stellarPhotometricRepeatabilityMetric: StellarPhotometricRepeatability
+      atools.PhotometricRepeatabilityMetric: PhotometricRepeatability
       python: |
         from lsst.analysis.tools.atools import *
+  analyzeMatchedVisitExtended:
+    class: lsst.analysis.tools.tasks.AssociatedSourcesTractAnalysisTask
+    config:
+      bands: ['g', 'r', 'i', 'z', 'y']
+      connections.outputName: matchedVisitExtended
+      atools.modelPhotRepGalSn10to20: PhotometricRepeatability
+      atools.modelPhotRepGalSn10to20.fluxType: cModelFlux
+      atools.modelPhotRepGalSn10to20.process.filterActions.perGroupStdevFiltered.selectors.extendedness.op: gt
+      atools.modelPhotRepGalSn10to20.process.filterActions.perGroupStdevFiltered.selectors.sn.minimum: 10
+      atools.modelPhotRepGalSn10to20.process.filterActions.perGroupStdevFiltered.selectors.sn.maximum: 20
+      atools.modelPhotRepGalSn10to20.produce.plot: NoPlot
+
+      atools.modelPhotRepGalSn20to40: PhotometricRepeatability
+      atools.modelPhotRepGalSn20to40.fluxType: cModelFlux
+      atools.modelPhotRepGalSn20to40.process.filterActions.perGroupStdevFiltered.selectors.extendedness.op: gt
+      atools.modelPhotRepGalSn20to40.process.filterActions.perGroupStdevFiltered.selectors.sn.minimum: 20
+      atools.modelPhotRepGalSn20to40.process.filterActions.perGroupStdevFiltered.selectors.sn.maximum: 40
+      # atools.modelPhotRepGalSn20to40.produce.plot: NoPlot
+      python: |
+        from lsst.analysis.tools.atools import *
+        from lsst.analysis.tools.interfaces import *

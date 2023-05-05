@@ -3,6 +3,7 @@ from lsst.analysis.tools.actions.plot.colorColorFitPlot import *
 from lsst.analysis.tools.actions.plot.diaSkyPlot import *
 from lsst.analysis.tools.actions.plot.histPlot import *
 from lsst.analysis.tools.actions.plot.multiVisitCoveragePlot import *
+from lsst.analysis.tools.actions.plot.propertyMapPlot import *
 from lsst.analysis.tools.actions.plot.rhoStatisticsPlot import *
 from lsst.analysis.tools.actions.plot.scatterplotWithTwoHists import *
 from lsst.analysis.tools.actions.plot.skyPlot import *

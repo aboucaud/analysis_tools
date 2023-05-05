@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import skyproj
 from lsst.pex.config import Field, ListField
+from lsst.skymap.tractInfo import ExplicitTractInfo
 from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle
 
@@ -43,14 +44,29 @@ class PropertyMapPlot(PlotAction):
 
     plotName = Field[str](doc="The name for the plot.", optional=False)
 
-    def __call__(self, data: KeyedData, **kwargs) -> Mapping[str, Figure] | Figure:
-        # self._validateInput(data, **kwargs)
+    def __call__(self, data: KeyedData, tract: ExplicitTractInfo, **kwargs) -> Mapping[str, Figure] | Figure:
+        import ipdb; ipdb.set_trace()
+        # self._validateInput(data, tract, **kwargs)
         return self.makePlot(data, **kwargs)
+
+    # def _validateInput(self, data: KeyedData, tract: ExplicitTractInfo, **kwargs) -> None:
+    #     """NOTE currently can only check that something is not a Scalar, not
+    #     check that the data is consistent with Vector
+    #     """
+    #     needed = self.getInputSchema(**kwargs)
+    #     if remainder := {key.format(**kwargs) for key, _ in needed} - {
+    #         key.format(**kwargs) for key in data.keys()
+    #     }:
+    #         raise ValueError(f"Task needs keys {remainder} but they were not found in input")
+    #     for name, typ in needed:
+    #         isScalar = issubclass((colType := type(data[name.format(**kwargs)])), Scalar)
+    #         if isScalar and typ != Scalar:
+    #             raise ValueError(f"Data keyed by {name} has type {colType} but action requires type {typ}")
 
     def makePlot(
         self,
         data: KeyedData,
-        tract: int,
+        tract: ExplicitTractInfo,
         **kwargs,
     ) -> Figure:
         """Make the survey property map plot.
@@ -60,8 +76,8 @@ class PropertyMapPlot(PlotAction):
         data : `KeyedData`
             The HealSparseMap to plot the points from.
 
-        tract: `int`
-            The tract that the data comes from
+        tract: `lsst.skymap.tractInfo.ExplicitTractInfo`
+            The tract info object that the data comes from
 
         **kwargs :
             Additional keyword arguments to pass to the plot
@@ -78,8 +94,10 @@ class PropertyMapPlot(PlotAction):
         sp = skyproj.GnomonicSkyproj(ax=ax, lon_0=tract.ctr_coord.getRa().asDegrees(),
                                      lat_0=tract.ctr_coord.getDec().asDegrees())
 
+        import ipdb; ipdb.set_trace()
         _ = sp.draw_hspmap(data, zoom=True)
 
         sp.draw_colorbar(label="Exposure Time (s)")  # TODO: make it for multiple bands
 
+        # xAxisLabel
         return fig

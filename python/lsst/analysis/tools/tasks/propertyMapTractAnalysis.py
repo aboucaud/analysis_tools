@@ -85,5 +85,7 @@ class PropertyMapTractAnalysisTask(AnalysisPipelineTask):
             skymap = inputs["skymap"]
         else:
             skymap = None
-        outputs = self.run(data=inputs["data"], skymap=skymap)
+        dataId = butlerQC.quantum.dataId
+        tract = skymap[dataId['tract']]
+        outputs = self.run(data=inputs["data"], tract=tract)
         butlerQC.put(outputs, outputRefs)

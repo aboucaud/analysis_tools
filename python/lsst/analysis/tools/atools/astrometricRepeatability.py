@@ -42,6 +42,7 @@ from ..actions.vector import (
     SnSelector,
     ThresholdSelector,
 )
+from ..actions.keyedData import CalcDistances
 from ..interfaces import AnalysisTool
 
 
@@ -205,3 +206,18 @@ class StellarAstrometricResidualStdDevDecFocalPlanePlot(StellarAstrometricResidu
         self.produce.xAxisLabel = "x (focal plane)"
         self.produce.yAxisLabel = "y (focal plane)"
         self.produce.zAxisLabel = "Std(Dec - Dec$_{mean}$) (mArcsec)"
+
+
+class AstrometricRelativeRepeatability(AnalysisTool):
+    """This is going to make AMx, ADx, AFx"""
+
+    def setDefaults(self):
+        super().setDefaults()
+        self.prep.selectors.bandSelector = BandSelector()
+        self.prep.selectors.snSelector = SnSelector()
+        self.prep.selectors.snSelector.threshold = 10
+        self.prep.selectors.snSelector.maxSN = 50000
+        # TODO: fill in other filtering here, following filterMatches
+
+        self.process.buildActions.x = LoadVector(vectorKey="x")
+        self.process.buildActions.rms = CalcDistances(mags=MagColumnNanoJansky(vectorKey="psfFlux"))

@@ -35,3 +35,7 @@ tasks:
     class: lsst.analysis.tools.tasks.catalogMatch.CatalogMatchTask
   refCatObjectTract:
     class: lsst.analysis.tools.tasks.refCatObjectAnalysis.RefCatObjectAnalysisTask
+  surveyPropertyMapTract:
+    class: lsst.analysis.tools.tasks.propertyMapTractAnalysis.PropertyMapTractAnalysisTask
+    config:
+      connections.outputName: propertyMapTracExposureTime

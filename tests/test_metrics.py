@@ -62,8 +62,14 @@ class TestDiffMatched(TestCase):
         self.assertGreater(len(list(tester.getInputSchema())), 0)
         self.assertGreater(len(list(tester.configureMetrics())), 0)
 
-    def testMatchedRefCoaddCModelFluxMetric(self):
-        self._testMatchedRefCoaddMetricDerived(MatchedRefCoaddCModelFluxMetric)
+    def testMatchedRefCoaddDiffMagMetric(self):
+        self._testMatchedRefCoaddMetricDerived(
+            MatchedRefCoaddDiffMagMetric,
+            fluxes={"cmodel": MagnitudeTool.fluxes_default.cmodel_err},
+            mag_y="cmodel",
+            name_prefix="",
+            unit="",
+        )
 
     def testMatchedRefCoaddPositionMetric(self):
         for variable in ("x", "y"):

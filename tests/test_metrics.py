@@ -25,39 +25,33 @@ from unittest import TestCase, main
 import lsst.utils.tests
 import numpy as np
 from lsst.analysis.tools.atools import (
-    MatchedRefCoaddCModelFluxMetric,
-    MatchedRefCoaddMetric,
-    MatchedRefCoaddPositionMetric,
+    MagnitudeTool,
+    MatchedRefCoaddDiffMagMetric,
+    MatchedRefCoaddDiffMetric,
+    MatchedRefCoaddDiffPositionMetric,
 )
-from lsst.analysis.tools.contexts import MatchedRefChiContext, MatchedRefDiffContext
 
 
 class TestDiffMatched(TestCase):
     def setUp(self) -> None:
         super().setUp()
         self.band_default = "analysisTools"
-        self.contexts = (MatchedRefChiContext, MatchedRefDiffContext)
 
-    def _testMatchedRefCoaddMetricDerived(self, type_metric: type[MatchedRefCoaddMetric], **kwargs):
-        for context in self.contexts:
-            tester = type_metric(**kwargs)
-            tester.applyContext(context)
+    def _testMatchedRefCoaddMetricDerived(self, type_metric: type[MatchedRefCoaddDiffMetric], **kwargs):
+        for compute_chi in (False, True):
+            tester = type_metric(**kwargs, compute_chi=compute_chi)
+            # tester.getInputSchema won't work properly before finalizing
             tester.finalize()
 
-            keys = list(k[0] for k in tester.getInputSchema())
+            keys = set(k[0] for k in tester.getInputSchema())
             self.assertGreater(len(keys), 0)
             self.assertGreater(len(list(tester.configureMetrics())), 0)
             data = {key.format(band=self.band_default): np.arange(5) for key in keys}
-            self.assertGreater(len(tester(data)), 0)
+            output = tester(data)
+            self.assertGreater(len(output), 0)
 
     def testMatchedRefCoaddMetric(self):
-        tester = MatchedRefCoaddMetric(unit="")
-        with self.assertRaises(ValueError):
-            tester({})
-        tester = MatchedRefCoaddMetric(name_prefix="")
-        with self.assertRaises(ValueError):
-            tester({})
-        tester = MatchedRefCoaddMetric(unit="", name_prefix="")
+        tester = MatchedRefCoaddDiffMetric(unit="", name_prefix="")
         tester.finalize()
         self.assertGreater(len(list(tester.getInputSchema())), 0)
         self.assertGreater(len(list(tester.configureMetrics())), 0)
@@ -71,9 +65,9 @@ class TestDiffMatched(TestCase):
             unit="",
         )
 
-    def testMatchedRefCoaddPositionMetric(self):
+    def testMatchedRefCoaddDiffPositionMetric(self):
         for variable in ("x", "y"):
-            self._testMatchedRefCoaddMetricDerived(MatchedRefCoaddPositionMetric, variable=variable)
+            self._testMatchedRefCoaddMetricDerived(MatchedRefCoaddDiffPositionMetric, variable=variable)
 
 
 class MyMemoryTestCase(lsst.utils.tests.MemoryTestCase):

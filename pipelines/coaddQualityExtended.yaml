@@ -1,10 +1,32 @@
 description: |
-  Tier2 plots and metrics to assess coadd quality
+  Tier2 atools and metrics to assess coadd quality
 tasks:
   analyzeObjectTableExtended:
     class: lsst.analysis.tools.tasks.ObjectTableTractAnalysisTask
     config:
       connections.outputName: objectTableExtended
-      atools.ap12PsfSky: Ap12PsfSkyPlot
+      # set plots to run
+      atools.ap12PsfSkyPlot: Ap12PsfSkyPlot
+      atools.shapeSizeDetRadiusVsCmodelMagPlot: SizeMagnitudePlot
+      atools.shapeSizeDetRadiusVsCmodelMagPlot.size_type: "determinantRadius"
+      atools.shapeSizeDetRadiusVsCmodelMagPlot.mag_x: "cmodel_err"
+      atools.shapeSizeDetRadiusVsCmodelMagPlot.size_y: "shape_slot"
+      atools.shapeSizeDetRadiusVsCmodelMagPlot.applyContext: CoaddContext
+      atools.shapeSizeDetRadiusVsPsfMagPlot: SizeMagnitudePlot
+      atools.shapeSizeDetRadiusVsPsfMagPlot.size_type: "determinantRadius"
+      atools.shapeSizeDetRadiusVsPsfMagPlot.mag_x: "psf_err"
+      atools.shapeSizeDetRadiusVsPsfMagPlot.size_y: "shape_slot"
+      atools.shapeSizeDetRadiusVsPsfMagPlot.applyContext: CoaddContext
+      atools.cModelBulgeSizeVsCmodelBulgeMagPlot: SizeMagnitudePlot
+      atools.cModelBulgeSizeVsCmodelBulgeMagPlot.size_type: "singleColumnSize"
+      atools.cModelBulgeSizeVsCmodelBulgeMagPlot.mag_x: "bulge_err"
+      atools.cModelBulgeSizeVsCmodelBulgeMagPlot.size_y: "bulge"
+      atools.cModelBulgeSizeVsCmodelBulgeMagPlot.applyContext: CoaddContext
+      atools.cModelDiskSizeVsCmodelDiskMagPlot: SizeMagnitudePlot
+      atools.cModelDiskSizeVsCmodelDiskMagPlot.size_type: "singleColumnSize"
+      atools.cModelDiskSizeVsCmodelDiskMagPlot.mag_x: "disk_err"
+      atools.cModelDiskSizeVsCmodelDiskMagPlot.size_y: "disk"
+      atools.cModelDiskSizeVsCmodelDiskMagPlot.applyContext: CoaddContext
       python: |
         from lsst.analysis.tools.atools import *
+        from lsst.analysis.tools.contexts import *

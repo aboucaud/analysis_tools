@@ -20,17 +20,33 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from __future__ import annotations
 
-__all__ = ("PropertyMapSkyPlot",)
+__all__ = ("PropertyMapTool",)
+
+from typing import Any
+
+from healsparse.healSparseMap import HealSparseMap
+from lsst.pex.config import Field
 
 from ..actions.plot.propertyMapPlot import PropertyMapPlot
-from ..interfaces import AnalysisTool
+from ..interfaces import AnalysisAction, AnalysisTool, KeyedData
 
 
-class PropertyMapSkyPlot(AnalysisTool):
+class LoadHealSparseMap(AnalysisAction):
+    mapName = Field[str](doc="This takes a HealSparseMap from KeyedData")
+
+    def getInputSchema(self) -> KeyedDataSchema:
+        return [(self.mapName, HealSparseMap)]
+
+    def __call__(self, data: KeyedData, **kwds: Any) -> HealSparseMap:
+        return data[self.mapName]
+
+class PropertyMapTool(AnalysisTool):
     parameterizedBand: bool = False
 
     def setDefaults(self):
         super().setDefaults()
 
+        self.process.buildActions.data = LoadHealSparseMap
+        self.process.buildActions.data.mapName = "data"
         self.produce.plot = PropertyMapPlot()
         self.produce.plot.plotName = "propertyMapExpTime"

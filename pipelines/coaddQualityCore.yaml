@@ -35,18 +35,18 @@ tasks:
     class: lsst.analysis.tools.tasks.catalogMatch.CatalogMatchTask
   refCatObjectTract:
     class: lsst.analysis.tools.tasks.refCatObjectAnalysis.RefCatObjectAnalysisTask
-  surveyPropertyMapExposureTimeTract:
-    class: lsst.analysis.tools.tasks.propertyMapTractAnalysis.PropertyMapTractAnalysisTask
+  plotPropertyMapExposureTimeTract:
+    class: lsst.analysis.tools.tasks.PropertyMapTractAnalysisTask
     config:
-      connections.outputName: propertyMapTracExposureTime
-      atools.PropertyMapSkyPlot: PropertyMapSkyPlot
+      connections.outputName: propertyMapTracExpTime
+      atools.deepCoaddExpTime: PropertyMapTool
       python: |
         from lsst.analysis.tools.atools import *
-  surveyPropertyMapPsfSizeTract:
-    class: lsst.analysis.tools.tasks.propertyMapTractAnalysis.PropertyMapTractAnalysisTask
+  plotPropertyMapPsfSizeTract:
+    class: lsst.analysis.tools.tasks.PropertyMapTractAnalysisTask
     config:
       connections.outputName: propertyMapTracPsfSize
       connections.propertyMapName: deepCoadd_psf_size_consolidated_map_weighted_mean
-      atools.PropertyMapSkyPlot: PropertyMapSkyPlot
+      atools.deepCoaddPsfSize: PropertyMapTool
       python: |
         from lsst.analysis.tools.atools import *

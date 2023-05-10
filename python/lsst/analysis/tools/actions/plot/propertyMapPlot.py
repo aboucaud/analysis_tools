@@ -45,9 +45,9 @@ class PropertyMapPlot(PlotAction):
     plotName = Field[str](doc="The name for the plot.", optional=False)
 
     def __call__(self, data: KeyedData, tract: ExplicitTractInfo, **kwargs) -> Mapping[str, Figure] | Figure:
-        import ipdb; ipdb.set_trace()
+        import ipdb;  ipdb.set_trace()
         # self._validateInput(data, tract, **kwargs)
-        return self.makePlot(data, **kwargs)
+        return self.makePlot(data, tract=tract, **kwargs)
 
     # def _validateInput(self, data: KeyedData, tract: ExplicitTractInfo, **kwargs) -> None:
     #     """NOTE currently can only check that something is not a Scalar, not
@@ -94,10 +94,13 @@ class PropertyMapPlot(PlotAction):
         sp = skyproj.GnomonicSkyproj(ax=ax, lon_0=tract.ctr_coord.getRa().asDegrees(),
                                      lat_0=tract.ctr_coord.getDec().asDegrees())
 
-        import ipdb; ipdb.set_trace()
-        _ = sp.draw_hspmap(data, zoom=True)
+        # import ipdb; ipdb.set_trace()
+        _ = sp.draw_hspmap(data["data"], zoom=True)
 
         sp.draw_colorbar(label="Exposure Time (s)")  # TODO: make it for multiple bands
 
         # xAxisLabel
         return fig
+
+    def getInputSchema(self, **kwargs) -> KeyedDataSchema:
+        return [("data", HealSparseMap)]

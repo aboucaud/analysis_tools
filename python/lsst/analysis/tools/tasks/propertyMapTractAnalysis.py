@@ -72,7 +72,7 @@ class PropertyMapTractAnalysisConfig(
 
 class PropertyMapTractAnalysisTask(AnalysisPipelineTask):
     ConfigClass = PropertyMapTractAnalysisConfig
-    _DefaultName = "propertyMapTractAnalysis"
+    _DefaultName = "propertyMapTractAnalysisTask"
 
     def runQuantum(
         self,
@@ -87,5 +87,6 @@ class PropertyMapTractAnalysisTask(AnalysisPipelineTask):
             skymap = None
         dataId = butlerQC.quantum.dataId
         tract = skymap[dataId['tract']]
-        outputs = self.run(data=inputs["data"], tract=tract)
+        # import ipdb; ipdb.set_trace()
+        outputs = self.run(data={"data": inputs["data"]}, tract=tract)
         butlerQC.put(outputs, outputRefs)

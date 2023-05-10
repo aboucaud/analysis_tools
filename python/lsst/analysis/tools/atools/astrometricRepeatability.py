@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 __all__ = (
+    "AstrometricRelativeRepeatability",
     "StellarAstrometricResidualsRAFocalPlanePlot",
     "StellarAstrometricResidualsDecFocalPlanePlot",
     "StellarAstrometricResidualStdDevRAFocalPlanePlot",
@@ -29,7 +30,11 @@ __all__ = (
     "StellarAstrometricResidualsDecSkyPlot",
 )
 
+from lsst.pex.config import Field
+
+from ..actions.keyedData import CalcDistances
 from ..actions.plot.focalPlanePlot import FocalPlanePlot
+from ..actions.plot.histPlot import HistPanel, HistPlot
 from ..actions.plot.skyPlot import SkyPlot
 from ..actions.vector import (
     BandSelector,
@@ -38,11 +43,11 @@ from ..actions.vector import (
     DownselectVector,
     LoadVector,
     RAcosDec,
+    RangeSelector,
     ResidualWithPerGroupStatistic,
     SnSelector,
     ThresholdSelector,
 )
-from ..actions.keyedData import CalcDistances
 from ..interfaces import AnalysisTool
 
 
@@ -209,15 +214,60 @@ class StellarAstrometricResidualStdDevDecFocalPlanePlot(StellarAstrometricResidu
 
 
 class AstrometricRelativeRepeatability(AnalysisTool):
-    """This is going to make AMx, ADx, AFx"""
+    """Calculate the AMx, ADx, AFx metrics and make histograms showing the data
+    used to compute the metrics.
+    """
+
+    fluxType = Field[str](doc="Flux type to calculate repeatability with", default="psfFlux")
+    xValue = Field[int](doc="Metric suffix corresponding to annulus size (1, 2, or 3)", default=1)
+    AMThresh = Field[float](doc="AMx threshold", default=10.0)
 
     def setDefaults(self):
         super().setDefaults()
         self.prep.selectors.bandSelector = BandSelector()
+        # Following what was done in faro, only sources with S/N between 50
+        # and 50000 are included. The other filtering that was done in faro
+        # is now covered by only including sources from isolated_star_sources.
         self.prep.selectors.snSelector = SnSelector()
-        self.prep.selectors.snSelector.threshold = 10
+        self.prep.selectors.snSelector.fluxType = self.fluxType
+        self.prep.selectors.snSelector.threshold = 50
         self.prep.selectors.snSelector.maxSN = 50000
-        # TODO: fill in other filtering here, following filterMatches
 
-        self.process.buildActions.x = LoadVector(vectorKey="x")
-        self.process.buildActions.rms = CalcDistances(mags=MagColumnNanoJansky(vectorKey="psfFlux"))
+        # Select only sources with magnitude between 17 and 21.5
+        self.process.buildActions.mags = MagColumnNanoJansky(vectorKey=self.fluxType)
+        self.process.filterActions.coord_ra = DownselectVector(vectorKey="coord_ra")
+        self.process.filterActions.coord_ra.selector = RangeSelector(key="mags", minimum=17, maximum=21.5)
+        self.process.filterActions.coord_dec = DownselectVector(
+            vectorKey="coord_dec", selector=self.process.filterActions.coord_ra.selector
+        )
+        self.process.filterActions.obj_index = DownselectVector(
+            vectorKey="obj_index", selector=self.process.filterActions.coord_ra.selector
+        )
+        self.process.filterActions.visit = DownselectVector(
+            vectorKey="visit", selector=self.process.filterActions.coord_ra.selector
+        )
+
+        self.process.calculateActions.rms = CalcDistances()
+
+        self.produce.metric.units = {
+            "AMx": "mas",
+            "AFx": "percent",
+            "ADx": "mas",
+        }
+
+        self.produce.metric.newNames = {
+            "AMx": f"{{band}}_AM{self.xValue}",  # f"AM{self.xValue}",
+            "AFx": f"{{band}}_AF{self.xValue}",  # f"AF{self.xValue}",
+            "ADx": f"{{band}}_AD{self.xValue}",  # f"AD{self.xValue}",
+        }
+
+        self.produce.plot = HistPlot()
+
+        self.produce.plot.panels["panel_sep"] = HistPanel()
+        self.produce.plot.panels["panel_sep"].hists = dict(separationResiduals="Source separations")
+        self.produce.plot.panels["panel_sep"].label = "Separation Distances (marcsec)"
+
+        self.produce.plot.panels["panel_rms"] = HistPanel()
+        self.produce.plot.panels["panel_rms"].hists = dict(rmsDistances="Object RMS")
+        self.produce.plot.panels["panel_rms"].label = "Per-Object RMS (marcsec)"
+        # TODO: DM-39163 add reference lines for ADx, AMx, and AFx.

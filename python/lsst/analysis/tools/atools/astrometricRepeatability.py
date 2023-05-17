@@ -32,7 +32,7 @@ __all__ = (
 
 from lsst.pex.config import Field
 
-from ..actions.keyedData import CalcDistances
+from ..actions.keyedData import CalcRelativeDistances
 from ..actions.plot.focalPlanePlot import FocalPlanePlot
 from ..actions.plot.histPlot import HistPanel, HistPlot
 from ..actions.plot.skyPlot import SkyPlot
@@ -220,7 +220,6 @@ class AstrometricRelativeRepeatability(AnalysisTool):
 
     fluxType = Field[str](doc="Flux type to calculate repeatability with", default="psfFlux")
     xValue = Field[int](doc="Metric suffix corresponding to annulus size (1, 2, or 3)", default=1)
-    AMThresh = Field[float](doc="AMx threshold", default=10.0)
 
     def setDefaults(self):
         super().setDefaults()
@@ -229,12 +228,10 @@ class AstrometricRelativeRepeatability(AnalysisTool):
         # and 50000 are included. The other filtering that was done in faro
         # is now covered by only including sources from isolated_star_sources.
         self.prep.selectors.snSelector = SnSelector()
-        self.prep.selectors.snSelector.fluxType = self.fluxType
         self.prep.selectors.snSelector.threshold = 50
         self.prep.selectors.snSelector.maxSN = 50000
 
         # Select only sources with magnitude between 17 and 21.5
-        self.process.buildActions.mags = MagColumnNanoJansky(vectorKey=self.fluxType)
         self.process.filterActions.coord_ra = DownselectVector(vectorKey="coord_ra")
         self.process.filterActions.coord_ra.selector = RangeSelector(key="mags", minimum=17, maximum=21.5)
         self.process.filterActions.coord_dec = DownselectVector(
@@ -247,18 +244,12 @@ class AstrometricRelativeRepeatability(AnalysisTool):
             vectorKey="visit", selector=self.process.filterActions.coord_ra.selector
         )
 
-        self.process.calculateActions.rms = CalcDistances()
+        self.process.calculateActions.rms = CalcRelativeDistances()
 
         self.produce.metric.units = {
             "AMx": "mas",
             "AFx": "percent",
             "ADx": "mas",
-        }
-
-        self.produce.metric.newNames = {
-            "AMx": f"{{band}}_AM{self.xValue}",  # f"AM{self.xValue}",
-            "AFx": f"{{band}}_AF{self.xValue}",  # f"AF{self.xValue}",
-            "ADx": f"{{band}}_AD{self.xValue}",  # f"AD{self.xValue}",
         }
 
         self.produce.plot = HistPlot()
@@ -271,3 +262,14 @@ class AstrometricRelativeRepeatability(AnalysisTool):
         self.produce.plot.panels["panel_rms"].hists = dict(rmsDistances="Object RMS")
         self.produce.plot.panels["panel_rms"].label = "Per-Object RMS (marcsec)"
         # TODO: DM-39163 add reference lines for ADx, AMx, and AFx.
+
+    def finalize(self):
+        super().finalize()
+        self.prep.selectors.snSelector.fluxType = self.fluxType
+        self.process.buildActions.mags = ConvertFluxToMag(vectorKey=self.fluxType)
+
+        self.produce.metric.newNames = {
+            "AMx": f"{{band}}_AM{self.xValue}",
+            "AFx": f"{{band}}_AF{self.xValue}",
+            "ADx": f"{{band}}_AD{self.xValue}",
+        }

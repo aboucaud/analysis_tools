@@ -1,17 +1,24 @@
-__all__ = ("CalcDistances",)
+__all__ = ("CalcRelativeDistances",)
 
 import astropy.units as u
 import numpy as np
 import pandas as pd
 from astropy.coordinates import SkyCoord
-from lsst.faro.utils.separations import matchVisitComputeDistance
 from lsst.pex.config import Field
 
 from ...interfaces import KeyedData, KeyedDataAction, KeyedDataSchema, Vector
 
 
-class CalcDistances(KeyedDataAction):
-    """Calculate distances in a matched catalog"""
+class CalcRelativeDistances(KeyedDataAction):
+    """Calculate relative distances in a matched catalog.
+
+    Given a catalog of matched sources from multiple visits, this finds all
+    pairs of objects at a given separation, then calculates the separation of
+    their component source measurements from the individual visits. The RMS of
+    these is used to calculate the astrometric relative repeatability metric,
+    AMx, while the overall distribution of separations is used to compute the
+    ADx and AFx metrics.
+    """
 
     groupKey = Field[str](doc="Column key to use for forming groups", default="obj_index")
     visitKey = Field[str](doc="Column key to use for matching visits", default="visit")
@@ -25,7 +32,7 @@ class CalcDistances(KeyedDataAction):
     )
 
     def getInputSchema(self) -> KeyedDataSchema:
-        return (  # tuple(self.mags.getInputSchema()) + (
+        return (
             (self.groupKey, Vector),
             (self.raKey, Vector),
             (self.decKey, Vector),
@@ -33,13 +40,29 @@ class CalcDistances(KeyedDataAction):
         )
 
     def __call__(self, data: KeyedData, **kwargs) -> KeyedData:
-        # This part comes from AMxTask/astromResiduals in Faro
-        print("Annulus, data:", self.annulus, len(data["coord_ra"]))
+        """Run the calculation.
+
+        Parameters
+        ----------
+        data: KeyedData
+            Catalog of data including coordinate, visit, and object group
+            information.
+        Returns
+        -------
+        distanceParams: `dict`
+            Dictionary of the calculated arrays and metrics with the following
+            keys:
+            - ``rmsDistances`` : Per-object rms of separations (`np.array`).
+            - ``separationResiduals`` : All separations minus per-object median
+                (`np.array`)
+            - ``AMx`` : AMx metric (`float`).
+            - ``ADx`` : ADx metric (`float`).
+            - ``AFx`` : AFx metric (`float`).
+        """
         D = self.annulus * u.arcmin
         width = self.width * u.arcmin
         annulus = (D + (width / 2) * np.array([-1, +1])).to(u.radian)
 
-        # TODO: this line needs to add ra, dec,
         df = pd.DataFrame(
             {
                 "groupKey": data[self.groupKey],
@@ -60,20 +83,12 @@ class CalcDistances(KeyedDataAction):
 
         rmsDistances = []
         sepResiduals = []
-        sepResiduals2 = []
-        tt1 = 0
-        tt2 = 0
-        tt3 = 0
-        tt4 = 0
-        import time
-
-        for id in range(len(meanRa[:100])):
+        for id in range(len(meanRa)):
             match_inds = idx == id
             match_ids = idxCatalog[match_inds & (idxCatalog != id)]
             if match_ids.sum() == 0:
                 continue
-            if id % 100 == 0:
-                print(id, len(match_ids))
+
             object_srcs = df.loc[df["groupKey"] == meanRa.index[id]]
 
             object_visits = object_srcs["visit"].to_numpy()
@@ -90,30 +105,16 @@ class CalcDistances(KeyedDataAction):
                 match_ras = (match_srcs["coord_ra"].to_numpy() * u.degree).to(u.radian).value
                 match_decs = (match_srcs["coord_dec"].to_numpy() * u.degree).to(u.radian).value
 
-                t2 = time.time()
                 separations = matchVisitComputeDistance(
                     object_visits, object_ras, object_decs, match_visits, match_ras, match_decs
                 )
-
-                t3 = time.time()
 
                 if len(separations) > 1:
                     rmsDist = np.std(separations, ddof=1)
                     rmsDistances.append(rmsDist)
                 if len(separations) > 2:
-                    sepResids = np.abs(separations - np.median(separations))
-                    sepResiduals.append(sepResids)
-                    sepResiduals2.append(separations - np.median(separations))
-                t4 = time.time()
+                    sepResiduals.append(separations - np.median(separations))
 
-                # tt1 += t1 - t0
-                # tt2 += t2 - t1
-                tt3 += t3 - t2
-                tt4 += t4 - t3
-            if id % 100 == 0:
-                # print(t1 - t0, t2- t1, t3- t2, t4 - t3)
-                print(t3 - t2, t4 - t3)
-        print(tt1, tt2, tt3, tt4)
         if len(rmsDistances) == 0:
             AMx = np.nan * u.marcsec
         else:
@@ -123,23 +124,101 @@ class CalcDistances(KeyedDataAction):
             AFx = np.nan * u.percent
             ADx = np.nan * u.marcsec
             absDiffSeparations = np.array([]) * u.marcsec
-            absDiffSeparations2 = np.array([]) * u.marcsec
-
         else:
             sepResiduals = np.concatenate(sepResiduals)
-            sepResiduals2 = np.concatenate(sepResiduals2)
-            absDiffSeparations = ((sepResiduals - np.median(sepResiduals)) * u.radian).to(u.marcsec)
-            absDiffSeparations2 = (abs(sepResiduals2 - np.median(sepResiduals2)) * u.radian).to(u.marcsec)
+            absDiffSeparations = (abs(sepResiduals - np.median(sepResiduals)) * u.radian).to(u.marcsec)
             afThreshhold = 100.0 - self.threshAF
             ADx = np.percentile(absDiffSeparations, afThreshhold)
             AFx = 100 * np.mean(np.abs(absDiffSeparations) > self.threshAD * u.marcsec) * u.percent
 
         distanceParams = {
             "rmsDistances": (np.array(rmsDistances) * u.radian).to(u.marcsec).value,
-            "separationResiduals": absDiffSeparations2.value,
+            "separationResiduals": absDiffSeparations.value,
             "AMx": AMx.value,
             "ADx": ADx.value,
             "AFx": AFx.value,
         }
-        print(distanceParams)
+
         return distanceParams
+
+
+def matchVisitComputeDistance(visit_obj1, ra_obj1, dec_obj1, visit_obj2, ra_obj2, dec_obj2):
+    """Calculate obj1-obj2 distance for each visit in which both objects are
+    seen.
+
+    For each visit shared between visit_obj1 and visit_obj2, calculate the
+    spherical distance between the obj1 and obj2. visit_obj1 and visit_obj2 are
+    assumed to be unsorted. This function was borrowed from faro.
+
+    Parameters
+    ----------
+    visit_obj1 : scalar, list, or numpy.array of int or str
+        List of visits for object 1.
+    ra_obj1 : scalar, list, or numpy.array of float
+        List of RA in each visit for object 1.  [radians]
+    dec_obj1 : scalar, list or numpy.array of float
+        List of Dec in each visit for object 1. [radians]
+    visit_obj2 : list or numpy.array of int or str
+        List of visits for object 2.
+    ra_obj2 : list or numpy.array of float
+        List of RA in each visit for object 2.  [radians]
+    dec_obj2 : list or numpy.array of float
+        List of Dec in each visit for object 2.  [radians]
+    Results
+    -------
+    list of float
+        spherical distances (in radians) for matching visits.
+    """
+    distances = []
+    visit_obj1_idx = np.argsort(visit_obj1)
+    visit_obj2_idx = np.argsort(visit_obj2)
+    j_raw = 0
+    j = visit_obj2_idx[j_raw]
+    for i in visit_obj1_idx:
+        while (visit_obj2[j] < visit_obj1[i]) and (j_raw < len(visit_obj2_idx) - 1):
+            j_raw += 1
+            j = visit_obj2_idx[j_raw]
+        if visit_obj2[j] == visit_obj1[i]:
+            if np.isfinite([ra_obj1[i], dec_obj1[i], ra_obj2[j], dec_obj2[j]]).all():
+                distances.append(sphDist(ra_obj1[i], dec_obj1[i], ra_obj2[j], dec_obj2[j]))
+    return distances
+
+
+def sphDist(ra_mean, dec_mean, ra, dec):
+    """Calculate distance on the surface of a unit sphere.
+
+    This function was borrowed from faro.
+
+    Parameters
+    ----------
+    ra_mean : `float`
+        Mean RA in radians.
+    dec_mean : `float`
+        Mean Dec in radians.
+    ra : `numpy.array` [`float`]
+        Array of RA in radians.
+    dec : `numpy.array` [`float`]
+        Array of Dec in radians.
+    Notes
+    -----
+    Uses the Haversine formula to preserve accuracy at small angles.
+    Law of cosines approach doesn't work well for the typically very small
+    differences that we're looking at here.
+    """
+    # Haversine
+    dra = ra - ra_mean
+    ddec = dec - dec_mean
+    a = np.square(np.sin(ddec / 2)) + np.cos(dec_mean) * np.cos(dec) * np.square(np.sin(dra / 2))
+    dist = 2 * np.arcsin(np.sqrt(a))
+
+    # This is what the law of cosines would look like
+    #    dist = np.arccos(np.sin(dec1)*np.sin(dec2) +
+    #                     np.cos(dec1)*np.cos(dec2)*np.cos(ra1 - ra2))
+
+    # This will also work, but must run separately for each element
+    # whereas the numpy version will run on either scalars or arrays:
+    #   sp1 = geom.SpherePoint(ra1, dec1, geom.radians)
+    #   sp2 = geom.SpherePoint(ra2, dec2, geom.radians)
+    #   return sp1.separation(sp2).asRadians()
+
+    return dist

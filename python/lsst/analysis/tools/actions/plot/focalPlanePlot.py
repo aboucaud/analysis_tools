@@ -150,11 +150,17 @@ class FocalPlanePlot(PlotAction):
         fig : `matplotlib.figure.Figure`
             The resulting figure.
         """
-        fig = plt.figure(dpi=300)
-        ax = fig.add_subplot(111)
-
         if plotInfo is None:
             plotInfo = {}
+
+        if len(data["x"]) == 0:
+            noDataFig = Figure()
+            noDataFig.text(0.3, 0.5, "No data to plot after selectors applied")
+            noDataFig = addPlotInfo(noDataFig, plotInfo)
+            return noDataFig
+
+        fig = plt.figure(dpi=300)
+        ax = fig.add_subplot(111)
 
         detectorIds = np.unique(data["detector"])
         focalPlane_x = np.zeros(len(data["x"]))
